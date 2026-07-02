@@ -22,7 +22,4 @@ ENV/
 # SQLite Database
 database/database.db
 
-# Machine Learning model binaries (large pickles)
-models/trained/*.pkl
-models/similarity/*.pkl
-models/metadata/*.pkl
+
