@@ -1,0 +1,26 @@
+# Use a lightweight Python base image
+FROM python:3.11-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the requirements file first to leverage Docker's caching mechanism
+COPY requirements.txt .
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy required application modules, configuration, database, data, and models
+COPY backend/ ./backend/
+COPY config/ ./config/
+COPY data/ ./data/
+COPY database/ ./database/
+COPY models/ ./models/
+COPY src/ ./src/
+COPY utils/ ./utils/
+
+# Expose port 8000
+EXPOSE 8000
+
+# Start the application using uvicorn
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
