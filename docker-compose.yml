@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    networks:
+      - propertyiq-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_API_URL=http://backend:8000
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - propertyiq-network
+
+networks:
+  propertyiq-network:
+    driver: bridge
