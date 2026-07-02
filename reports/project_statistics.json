@@ -1,0 +1,53 @@
+{
+    "dataset_statistics": {
+        "total_properties": 3554,
+        "total_features": 12,
+        "numerical_features": [
+            "bedRoom",
+            "bathroom",
+            "built_up_area",
+            "servant room",
+            "store room"
+        ],
+        "categorical_features": [
+            "property_type",
+            "sector",
+            "balcony",
+            "agePossession",
+            "furnishing_type",
+            "luxury_category",
+            "floor_category"
+        ],
+        "missing_values": 0,
+        "duplicate_records": 34,
+        "unique_sectors": 104,
+        "property_types_distribution": {
+            "flat": 2804,
+            "house": 750
+        },
+        "furnishing_distribution": {
+            "unfurnished": 2349,
+            "semifurnished": 1018,
+            "furnished": 187
+        },
+        "average_property_price_cr": 2.441533483398987,
+        "median_property_price_cr": 1.51,
+        "minimum_price_cr": 0.07,
+        "maximum_price_cr": 31.5
+    },
+    "recommendation_statistics": {
+        "total_buildings_indexed": 246,
+        "recommendation_matrix_size": "246x246",
+        "similarity_matrix_dimensions": "246x246"
+    },
+    "model_statistics": {
+        "selected_algorithm": "RandomForestRegressor",
+        "final_model_size_mb": 21.4855899810791,
+        "number_of_hyperparameter_configurations_tested": 45,
+        "total_models_benchmarked": 8,
+        "training_time_s": 2.93,
+        "cross_validation_time_s": 15.0,
+        "average_prediction_latency_ms": 21.883473000007143,
+        "single_prediction_latency_ms": 20.975699999326025
+    }
+}
