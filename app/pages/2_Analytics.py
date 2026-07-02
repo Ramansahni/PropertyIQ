@@ -13,7 +13,9 @@ import plotly.graph_objects as go
 from utils.data_loader import load_analytics_data, load_latlong_data
 import pandas as pd
 from utils.theme import load_custom_css
-from src.analytics.plots import apply_plotly_dark_theme, CHART_THEME_COLORS
+import requests
+from config.settings import BACKEND_API_URL
+from utils.plots import apply_plotly_dark_theme, CHART_THEME_COLORS
 
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.warning("Please log in from the Home page to access this feature.")
@@ -38,16 +40,39 @@ latlong = load_latlong_data()
 if df is None:
     st.stop()
 
+# Query backend for aggregates KPIs
+try:
+    response = requests.get(f"{BACKEND_API_URL}/analytics", timeout=10)
+    if response.status_code == 200:
+        stats = response.json()
+        total_properties = stats['total_properties']
+        median_price = stats['median_price_cr']
+        sectors_count = stats['sectors_count']
+        median_area = stats['median_built_up_area_sqft']
+    else:
+        # Fallback to local computations if API call fails but returns error status
+        total_properties = len(df)
+        median_price = df["price"].median()
+        sectors_count = df["sector"].nunique()
+        median_area = df["built_up_area"].median()
+except Exception as e:
+    st.warning("Analytics backend server is unreachable. Computing KPI metrics locally.")
+    # Fallback to local computations
+    total_properties = len(df)
+    median_price = df["price"].median()
+    sectors_count = df["sector"].nunique()
+    median_area = df["built_up_area"].median()
+
 # --- TOP STATS ---
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.markdown(f'<div class="glass-card" style="text-align: center;"><div class="metric-val">{len(df)}</div><div class="metric-label">Properties</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="glass-card" style="text-align: center;"><div class="metric-val">{total_properties}</div><div class="metric-label">Properties</div></div>', unsafe_allow_html=True)
 with col2:
-    st.markdown(f'<div class="glass-card" style="text-align: center;"><div class="metric-val">₹ {df["price"].median():.2f} Cr</div><div class="metric-label">Median Price</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="glass-card" style="text-align: center;"><div class="metric-val">₹ {median_price:.2f} Cr</div><div class="metric-label">Median Price</div></div>', unsafe_allow_html=True)
 with col3:
-    st.markdown(f'<div class="glass-card" style="text-align: center;"><div class="metric-val">{df["sector"].nunique()}</div><div class="metric-label">Sectors</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="glass-card" style="text-align: center;"><div class="metric-val">{sectors_count}</div><div class="metric-label">Sectors</div></div>', unsafe_allow_html=True)
 with col4:
-    st.markdown(f'<div class="glass-card" style="text-align: center;"><div class="metric-val">{int(df["built_up_area"].median())}</div><div class="metric-label">Median Sq.Ft</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="glass-card" style="text-align: center;"><div class="metric-val">{int(median_area)}</div><div class="metric-label">Median Sq.Ft</div></div>', unsafe_allow_html=True)
 
 # --- TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([

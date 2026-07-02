@@ -11,10 +11,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from src.inference.predict import load_model_and_data, predict_price
+import requests
+from config.settings import BACKEND_API_URL
 from utils.data_loader import load_analytics_data
 from utils.theme import load_custom_css
-from src.analytics.plots import apply_plotly_dark_theme, CHART_THEME_COLORS
+from utils.plots import apply_plotly_dark_theme, CHART_THEME_COLORS
 
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.warning("Please log in from the Home page to access this feature.")
@@ -51,16 +52,15 @@ st.markdown("""
 st.title("🏷️ Property Price Predictor")
 st.markdown("Fill in the property details to get an instant AI-powered price estimate.")
 
-pipeline, df = load_model_and_data()
 analytics_df = load_analytics_data()
 
-if pipeline is None or df is None:
+if analytics_df is None:
     st.stop()
 
 # --- INPUT FORM ---
 with st.sidebar:
     st.header("Property Details")
-    sector = st.selectbox('Sector', sorted(df['sector'].unique().tolist()))
+    sector = st.selectbox('Sector', sorted(analytics_df['sector'].unique().tolist()))
     property_type = st.radio('Property Type', ['flat', 'house'], horizontal=True)
     
     colA, colB = st.columns(2)
@@ -103,19 +103,37 @@ with st.sidebar:
 
 # --- OUTPUT AREA ---
 if predict_btn:
-    input_data = [
-        property_type, sector, bedRoom, bathroom, balcony,
-        agePossession, built_up_area, servant_val, store_val,
-        furnishing_type, luxury_category, floor_category
-    ]
+    payload = {
+        "property_type": property_type,
+        "sector": sector,
+        "bedRoom": float(bedRoom),
+        "bathroom": float(bathroom),
+        "balcony": balcony,
+        "agePossession": agePossession,
+        "built_up_area": float(built_up_area),
+        "servant_room": float(servant_val),
+        "store_room": float(store_val),
+        "furnishing_type": furnishing_type,
+        "luxury_category": luxury_category,
+        "floor_category": floor_category
+    }
     
     with st.spinner("Analyzing market data..."):
-        pred = predict_price(pipeline, input_data)
-        
-        # Calculations
-        lower_bound = pred * 0.87 # -13%
-        upper_bound = pred * 1.13 # +13%
-        price_per_sqft = (pred * 10000000) / built_up_area
+        try:
+            response = requests.post(f"{BACKEND_API_URL}/predict", json=payload, timeout=10)
+            if response.status_code == 200:
+                res_data = response.json()
+                pred = res_data['estimated_price_cr']
+                lower_bound = res_data['lower_bound_cr']
+                upper_bound = res_data['upper_bound_cr']
+                price_per_sqft = res_data['price_per_sqft']
+            else:
+                st.error(f"Prediction backend returned an error: {response.text}")
+                st.stop()
+        except requests.exceptions.RequestException as e:
+            st.error("Prediction backend server is currently offline or unreachable. Please try again later.")
+            print(f"Prediction API call failed: {e}")
+            st.stop()
         
         # Sector Rank
         sector_prices = analytics_df.groupby('sector')['price'].mean().sort_values(ascending=False)

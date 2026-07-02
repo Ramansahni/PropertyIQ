@@ -6,3 +6,5 @@ plotly
 bcrypt
 category_encoders
 python-dotenv
+fastapi
+uvicorn

@@ -10,12 +10,14 @@ if (root_path / "requirements.txt").exists() and str(root_path) not in sys.path:
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from src.recommendation.recommender import load_recommender_data, recommend_by_facilities, recommend_by_price, recommend_by_location
+import requests
+from config.settings import BACKEND_API_URL
+from config.constants import APPARTMENTS_DATA_PATH
 from utils.data_loader import load_analytics_data
 import pandas as pd
 import numpy as np
 from utils.theme import load_custom_css
-from src.analytics.plots import apply_plotly_dark_theme, CHART_THEME_COLORS
+from utils.plots import apply_plotly_dark_theme, CHART_THEME_COLORS
 
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.warning("Please log in from the Home page to access this feature.")
@@ -27,13 +29,44 @@ load_custom_css()
 st.title("🔍 Recommender Systems")
 st.markdown("Three specialized engines to find exactly what you're looking for.")
 
-cosine_sim1, cosine_sim2, cosine_sim3, location_df_normalized = load_recommender_data()
 df = load_analytics_data()
 
-if location_df_normalized is None or df is None:
+if df is None:
     st.stop()
 
-property_list = sorted(location_df_normalized.index.tolist())
+# Load unique property names from the raw dataset instead of the serialized recommender data
+try:
+    df_app = pd.read_csv(APPARTMENTS_DATA_PATH).drop(22)
+    property_list = sorted(df_app['PropertyName'].tolist())
+except Exception as e:
+    st.error("Error loading property listing names for recommendations.")
+    st.stop()
+
+def fetch_recommendations(property_name: str, recommendation_type: str, top_n: int = 5) -> pd.DataFrame:
+    """Helper to query the similarity search backend API."""
+    payload = {
+        "property_name": property_name,
+        "recommendation_type": recommendation_type,
+        "top_n": top_n
+    }
+    try:
+        response = requests.post(f"{BACKEND_API_URL}/recommend", json=payload, timeout=10)
+        if response.status_code == 200:
+            res_data = response.json()
+            recs_list = res_data.get('recommendations', [])
+            recs_df = pd.DataFrame(recs_list)
+            if recs_df.empty:
+                return pd.DataFrame(columns=['PropertyName', 'SimilarityScore'])
+            # Map Pydantic casing back to column casing in frontend
+            recs_df = recs_df.rename(columns={'property_name': 'PropertyName', 'similarity_score': 'SimilarityScore'})
+            return recs_df
+        else:
+            st.error(f"Error from server: {response.text}")
+            return pd.DataFrame(columns=['PropertyName', 'SimilarityScore'])
+    except requests.exceptions.RequestException as e:
+        st.error("Recommendation backend server is currently offline or unreachable.")
+        print(f"Recommendation API call failed: {e}")
+        return pd.DataFrame(columns=['PropertyName', 'SimilarityScore'])
 
 tab1, tab2, tab3 = st.tabs(["🏆 Facility-Based", "💰 Price-Based", "📍 Location-Based"])
 
@@ -46,7 +79,7 @@ with tab1:
     with colA:
         selected_prop_fac = st.selectbox("Select a Property you like", property_list, key="fac_sel")
         if st.button("Find Similar Facilities", type="primary"):
-            recs = recommend_by_facilities(selected_prop_fac, cosine_sim1, location_df_normalized, top_n=5)
+            recs = fetch_recommendations(selected_prop_fac, "facilities", top_n=5)
             st.success("Matches found!")
             for idx, row in recs.iterrows():
                 st.markdown(f"**{row['PropertyName']}** - {row['SimilarityScore']*100:.1f}% Match")
@@ -83,7 +116,7 @@ with tab2:
         target_budget = st.number_input("Or enter exact Budget (Cr)", value=2.5, step=0.1)
         
         if st.button("Find Financial Matches", type="primary"):
-            recs = recommend_by_price(selected_prop_price, cosine_sim2, location_df_normalized, top_n=5)
+            recs = fetch_recommendations(selected_prop_price, "price", top_n=5)
             st.success("Matches found!")
             for idx, row in recs.iterrows():
                 st.markdown(f"**{row['PropertyName']}** - {row['SimilarityScore']*100:.1f}% Match")
