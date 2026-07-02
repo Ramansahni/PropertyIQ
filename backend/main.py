@@ -129,7 +129,17 @@ app.add_middleware(
 )
 
 # Register routes
+@app.get("/")
+async def root():
+    return {
+        "service": "PropertyIQ Backend",
+        "status": "running",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
 app.include_router(health.router)
 app.include_router(prediction.router)
 app.include_router(recommendation.router)
 app.include_router(analytics.router)
+
