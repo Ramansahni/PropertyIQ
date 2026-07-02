@@ -1,0 +1,1 @@
+from src.preprocessing.preprocessor import preprocess_furnishing
